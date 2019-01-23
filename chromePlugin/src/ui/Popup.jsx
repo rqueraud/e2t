@@ -1,9 +1,7 @@
 import React from 'react';
 import { render } from 'react-dom';
-import { PageHeader, Grid, Row, Col } from 'react-bootstrap';
-import { BrowserRouter as Router, Route, browserHistory } from 'react-router-dom';
+import { PageHeader, Grid, Row, Col, Button } from 'react-bootstrap';
 
-import Authenticate from './Authenticate.jsx';
 import CampaignSelection from './CampaignSelection.jsx';
 import Record from './Record.jsx';
 
@@ -11,70 +9,69 @@ class Popup extends React.Component {
 
 	constructor(props) {
 		super(props);
-
 		this.state = {
-			jwt: null,
-			campaignId: null,
-			expedition: {
-				events: null
-			}
-		};
-
-		this.setParentState = this.setParentState.bind(this);
+			mappedToCampaign : false,
+		}
+		this.handleInitialization = this.handleInitialization.bind(this);
+		this.syncWithBackground = this.syncWithBackground.bind(this);
 	}
 
 	componentDidMount() {
-		chrome.runtime.sendMessage({kind:'getState'}, response => {chrome.extension.getBackgroundPage().console.log(`Got state : ${JSON.stringify(response)}`); this.setState(response);});
+		this.syncWithBackground();
 	}
 
-	setParentState(state){
-		chrome.extension.getBackgroundPage().console.log(`Setting state : ${JSON.stringify(state)}`);
-		this.setState(state);
+	syncWithBackground() {
+		chrome.windows.getCurrent({populate:true}, window => {
+			chrome.runtime.sendMessage(
+				{kind:'setWindow' , windowId : window.id},
+				() => {
+					chrome.runtime.sendMessage(
+						{kind:'getState'}, 
+						response => {
+							chrome.extension.getBackgroundPage().console.log(`Got state : ${JSON.stringify(response)}`); 
+							this.setState(response);
+						}
+					);
+				}
+			)
+		});
+		
+	}
+
+	handleInitialization() {
+		event.preventDefault();
+		chrome.runtime.sendMessage(
+			{kind: 'initialize'},
+			response => {
+				this.setState(response);
+			}
+		);
 	}
 
 	render() {
+		let mainWindow;
+		let footer;
+		if (this.state.mappedToCampaign) {
+			mainWindow = (<Record/>);
+			footer = (
+				<Row>
+					<Col xsOffset={6} xs={2}>
+						<Button onClick={this.handleInitialization}>Change Campaign</Button>
+					</Col>
+				</Row>
+			);
+		} else {
+			mainWindow = (<CampaignSelection syncParent={this.syncWithBackground}/>); 
+		}
 		return (
-			<Router history={browserHistory}>
-				<Grid fluid={true}>
-					<Row>
-						<Col lg={12}>
-							<PageHeader>E2T | Exploratory Testing Tool</PageHeader>
-							<p className="lead">Record your test expeditions.</p>
-						</Col>
-					</Row>
-					<Row>
-						<Col lg={12}>
-							<Route
-								exact path="/popup.html"
-								render={(props) => <Authenticate
-									{...props}
-									jwt={this.state.jwt} 
-									setParentState={this.setParentState}
-								/>}
-							/>
-							<Route 
-								path="/campaign-selection"
-								render={(props) => <CampaignSelection
-									{...props}
-									jwt={this.state.jwt}
-									campaignId={this.state.campaignId}
-									setParentState={this.setParentState}
-								/>}
-							/>
-							<Route 
-								path="/record"
-								render={(props) => <Record
-									{...props}
-									jwt={this.state.jwt}
-									campaignId={this.state.campaignId}
-									expedition={this.state.expedition}
-									setParentState={this.setParentState}
-								/>}
-							/>
-						</Col>
-					</Row>
-				</Grid>
-			</Router>
+			<Grid fluid={true}>
+				<Row>
+					<PageHeader>E2T <small>Managin Test Exploration</small></PageHeader>
+					
+				</Row>
+				{mainWindow}
+				{footer}
+			</Grid>
 		);
 	}
 }

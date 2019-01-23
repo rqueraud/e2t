@@ -1,0 +1,38 @@
+version: '3.3'
+volumes:
+  mongodbdata:
+services:
+  mongo:
+    image: "mongo:3.0"
+    command: --smallfiles
+    volumes:
+      - mongodbdata:/data/db
+  rabbit:
+    image: "rabbitmq:3"
+  api:
+    build: 
+      context: api/
+      dockerfile: ./Dockerfile
+    depends_on:
+      - "rabbit"
+      - "mongo"
+  cartographer:
+    build: 
+      context: cartographer/
+      dockerfile: ./Dockerfile
+    depends_on:
+      - "rabbit"
+      - "mongo"
+  front:
+    build:
+      context: front/
+      dockerfile: ./DockerfileProd
+    volumes:
+      - /docker-volumes/etc/letsencrypt:/etc/letsencrypt
+    depends_on:
+      - "mongo"
+      - "api"
+    ports:
+      - 80:80
+      - 443:443
+

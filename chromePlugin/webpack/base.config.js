@@ -6,7 +6,7 @@ module.exports = {
     entry: {
         background: './src/background.js',
         popup: './src/ui/Popup.jsx',
-        onPageListener: './src/onPageListener.js'
+        listener: './src/onPageListener.js'
     },
     output: {
         filename: '[name].js',
@@ -27,7 +27,10 @@ module.exports = {
         new CopyPlugin([
             { from: './src/manifest.json', to: 'manifest.json' },
             { from: './src/images/plugin_icon.png', to: 'images/plugin_icon.png' },
-            { from: './src/popup.html', to: 'popup.html' }
+            { from: './src/popup.html', to: 'popup.html' },
+            { from: './src/css/bootstrap.min.css', to: 'css/bootstrap.min.css' },
+            { from: './src/css/bootstrap-theme.min.css', to: 'css/bootstrap-theme.min.css' },
+            { from: './node_modules/react-bootstrap-toggle/dist/bootstrap2-toggle.css', to: 'css/bootstrap2-toggle.css' }
         ]),
     ]
 };

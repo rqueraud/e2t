@@ -1,9 +1,6 @@
 version: '3.3'
 volumes:
   mongodbdata:
-secrets:
-  conf:
-    file: ./conf.json
 services:
   mongo:
     image: "mongo:3.0"
@@ -21,20 +18,31 @@ services:
     build: 
       context: api/
       dockerfile: ./Dockerfile
-    secrets:
-      - source: conf
-        target: conf.json
     depends_on:
       - "rabbit"
       - "mongo"
     ports:
       - 3000:3000
-    environment:
-      JWT_SECRET: 'localsercretstoredinpublicgithubthisisnotsosecret'
-  calculator:
+  cartographer:
     build: 
-      context: calculator/
+      context: cartographer/
       dockerfile: ./Dockerfile
     depends_on:
       - "rabbit"
       - "mongo"
+  front:
+    build:
+      context: front/
+      dockerfile: ./Dockerfile
+    depends_on:
+      - "mongo"
+      - "api"
+    ports:
+      - 80:80
+  validation:
+    build:
+      context: validation/
+      dockerfile: ./Dockerfile
+    ports:
+      - 8080:8080
+

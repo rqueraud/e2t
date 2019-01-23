@@ -1,64 +1,138 @@
 import React from 'react';
-import { ButtonToolbar, Button } from 'react-bootstrap';
-import Entropy from './Entropy.jsx';
+import { Row, Col, ButtonToolbar, Button, FormControl, ControlLabel} from 'react-bootstrap';
+import Toggle from 'react-bootstrap-toggle';
 
 export default class Record extends React.Component {  // TODO
 	constructor(props) {
         super(props);
-        
         this.state = {
-            message: ''
-        };
-        
-		this.clickStart = this.clickStart.bind(this);
-		this.clickPublish = this.clickPublish.bind(this);
-		this.clickDelete = this.clickDelete.bind(this);
+            isRecording : false,
+            autoPublish : false,
+            autoPublishTime : 4000,
+        };     
+		this.handleStart = this.handleStart.bind(this);
+		this.handlePublish = this.handlePublish.bind(this);
+        this.handleDelete = this.handleDelete.bind(this);
+        this.handleAutoPublish = this.handleAutoPublish.bind(this);
 	}
 
 	componentDidMount() {
+        chrome.runtime.sendMessage(
+			{kind:'getState'}, 
+			response => {
+				this.setState(response);
+			}
+		);
     }
     
-    clickStart(event) {
+    handleStart(event) {
         event.preventDefault();
-        
-		chrome.runtime.sendMessage({ kind: 'startExpedition' });
-		this.props.setParentState({expedition: {events: []}});
+		chrome.runtime.sendMessage(
+            { kind: 'startExpedition' },
+            response => this.setState(response)
+        );
 	}
 
-	clickPublish(event) {
-		event.preventDefault();
-
+	handlePublish(event) {
+        event.preventDefault();
         chrome.runtime.sendMessage(
-            {kind: 'publishExpedition', campaignId: this.props.campaignId},
-            response => this.setState({message: response.message})
+            {
+                kind: 'publishExpedition',
+                result: event.target.id
+            },
+            response => this.setState(response)
         );
-        this.props.setParentState({expedition: {events: null}});
     }
     
-    clickDelete(event) {
+    handleDelete(event) {
         event.preventDefault();
+        chrome.runtime.sendMessage(
+            {kind: 'deleteExpedition'},
+            response => this.state.setState(response)
+        );
+    }
 
-        chrome.runtime.sendMessage({kind: 'deleteExpedition'});
-        this.props.setParentState({expedition: {events: null}});
+    handleAutoPublish() {
+        this.setState({autoPublish: !this.state.autoPublish}, this.launchAutoPublish);
+    }
+
+    handleAutoPublishTime(event) {
+        this.setState({autoPublishTime: event.target.value}, this.launchAutoPublish);
+    }
+
+    launchAutoPublish() {
+        chrome.runtime.sendMessage(
+            {kind: 'launchAutoRecord',
+            autoPublish: this.state.autoPublish,
+            autoPublishTime: this.state.autoPublishTime
+            }
+        );
     }
 
 	render() {
-        let buttonToolbar = this.props.expedition.events?(  // True if the array is defined (even if empty)
-            <ButtonToolbar>
-                <Button bsStyle="primary" onClick={this.clickPublish}>Publish</Button>
-                <Button bsStyle="danger" onClick={this.clickDelete}>Delete</Button>
-            </ButtonToolbar>
+        let profile = (
+            <Row>
+                <Col xs={2}>
+                    <p style={{color: this.state.userColor, fontSize:50}}>&#9679;</p>
+                </Col>
+                <Col xs={8}>
+                    <p>Profile ID : {this.state.userId}</p>
+                </Col>
+            </Row>
+        )
+        let infos = (
+            <Row>
+                <Col xs={10}>
+                    <p>Campaign ID : {this.state.campaignId}</p>
+                </Col>
+            </Row>
+        );
+        let autoPublish = (
+            <Row>
+                <Col componentClass={ControlLabel} xs={2}>
+                        Recording:
+				</Col>
+                <Col xs={4}>
+                    <Toggle 
+                        onClick={this.handleAutoPublish}
+                        on="Auto" 
+                        off="Manual"
+                        size="tiny"
+                        active={this.state.autoPublish}>
+                    </Toggle>
+                </Col>
+                <Col componentClass={ControlLabel} xs={2}>
+                        each(ms):
+				</Col>
+                <Col xs={4}>
+                    <FormControl id="autoPulishTime" type="text" placeholder="3000" disabled={!this.state.autoPublish}/>
+                </Col>
+            </Row>
+        );
+        let buttonToolbar = this.state.isRecording?(  // True if the array is defined (even if empty)
+            <Row>
+                <Col xs={10}>
+                    <ButtonToolbar>
+                        <Button bsStyle="success" id="success" onClick={this.handlePublish} disabled={this.state.autoPublish}>Success</Button>
+                        <Button bsStyle="danger" id="failure" onClick={this.handlePublish} disabled={this.state.autoPublish}>Failure</Button>
+                        <Button bsStyle="primary" onClick={this.handleDelete} disabled={this.state.autoPublish}>Cancel</Button>
+                    </ButtonToolbar>
+                </Col>
+            </Row>
         ):(
-            <ButtonToolbar>
-                <Button bsStyle="primary" onClick={this.clickStart}>Record</Button>
-            </ButtonToolbar>
+            <Row>
+                <Col xs={10}>
+                    <ButtonToolbar>
+                        <Button bsStyle="primary" onClick={this.handleStart} disabled={this.state.autoPublish}>Record</Button>
+                    </ButtonToolbar>
+                </Col>
+            </Row>
         );
         return (
             <div>
-                <p>Campaign ID : {this.props.campaignId}</p>
-                <Entropy
-                    campaignId={this.props.campaignId}
-                />
+                {profile}
+                {infos}
+                {autoPublish}
                 {buttonToolbar}
             </div>
         );
